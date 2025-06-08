@@ -186,32 +186,52 @@ calcular_metricas <- function(m, phi, n_original, tau) {
 
 # --- CONFIGURAÇÕES GERAIS ----
 n_simulacoes <- 500
-n_original <- 100
 sigma <- 1
 seed_inicial <- 123
-
-# --- DEFINIÇÃO DOS CENÁRIOS ----
-taus <- c(10, 20, 30)
+# --- NOVOS CENÁRIOS --- 
+n_values <- c(25, 50, 75, 100, 150, 200)
 perc_faltantes <- c(0.10, 0.30, 0.50)
-phis <- c(0.3, 0.5, 0.7)
 
-# --- EXECUTA TODAS AS COMBINAÇÕES ----
-tabela_resultados <- do.call(rbind, lapply(phis, function(phi) {
-  do.call(rbind, lapply(taus, function(tau) {
-    do.call(rbind, lapply(perc_faltantes, function(p) {
-      m <- floor(n_original * p)
-      if (n_original > tau + m) {
-        calcular_metricas(m = m, phi = phi, n_original = n_original, tau = tau)
-      } else {
-        warning(paste("Cenário inválido: n =", n_original, "tau =", tau, "m =", m))
-        NULL
-      }
-    }))
+# --- EXECUTA TODAS AS COMBINAÇÕES COM OS NOVOS PARÂMETROS ---
+tabela_resultados_novos <- do.call(rbind, lapply(n_values, function(n_original) {
+  tau <- floor(n_original * 0.30)  # Tau é 30% de n
+  do.call(rbind, lapply(perc_faltantes, function(p) {
+    m <- floor(n_original * p)  # m é 10%, 30%, 50% de n
+    if (n_original > tau + m) {
+      calcular_metricas(m = m, phi = 0.7, n_original = n_original, tau = tau)
+    } else {
+      warning(paste("Cenário inválido: n =", n_original, "tau =", tau, "m =", m))
+      NULL
+    }
   }))
 }))
 
-# --- VISUALIZAÇÃO FINAL ---
-print(tabela_resultados)
+# --- FILTRAR APENAS INFORMAÇÕES DE MÉDIA ---- 
+tabela_resultados_media_novos <- tabela_resultados_novos[, c("Metodo", "Media", "Vies_Media", "EQM_Media", "Phi", "N", "Tau", "m")]
 
-# Se quiser salvar:
-write.csv2(tabela_resultados, 'teste_simulacao_v1.csv')
+# --- VISUALIZAÇÃO FINAL ---
+print(tabela_resultados_media_novos)
+
+
+# Reorganiza os dados para formato wide (cada método em uma coluna)
+tabela_wide <- tabela_resultados_media_novos %>%
+  select(Metodo, Media, Vies_Media, EQM_Media, N, Tau, m) %>%
+  pivot_wider(
+    names_from = Metodo,
+    values_from = c(Media, Vies_Media, EQM_Media)
+  )
+
+# Pegando apenas as infos da média 
+
+tabela_media <- tabela_wide %>%
+  select(N, Tau, m, starts_with("Media_"))
+
+
+tabela_vies <- tabela_wide %>%
+  select(N, Tau, m, starts_with("Vies_Media"))
+
+tabela_eqm <- tabela_wide %>%
+  select(N, Tau, m, starts_with("EQM_Media"))
+
+
+tabela_eqm
